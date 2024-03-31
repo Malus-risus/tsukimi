@@ -109,7 +109,12 @@ mod imp {
                 if let Some(userdata) = &result.UserData {
                     if let Some(unplayeditemcount) = userdata.UnplayedItemCount {
                         if unplayeditemcount > 0 {
-                            let mark = gtk::Label::new(Some(&userdata.UnplayedItemCount.expect("no unplayeditemcount").to_string()));
+                            let mark = gtk::Label::new(Some(
+                                &userdata
+                                    .UnplayedItemCount
+                                    .expect("no unplayeditemcount")
+                                    .to_string(),
+                            ));
                             mark.set_valign(gtk::Align::Start);
                             mark.set_halign(gtk::Align::End);
                             mark.set_height_request(40);
@@ -126,7 +131,10 @@ mod imp {
                 label.set_size_request(-1, 24);
                 label.set_ellipsize(gtk::pango::EllipsizeMode::End);
                 let labeltype = Label::new(Some(&result.Type));
-                let markup = format!("<span color='lightgray' font='small'>{}</span>", result.Type);
+                let markup = format!(
+                    "<span color='lightgray' font='small'>{}</span>",
+                    result.Type
+                );
                 labeltype.set_markup(markup.as_str());
                 labeltype.set_size_request(-1, 24);
                 vbox.append(&label);

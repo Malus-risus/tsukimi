@@ -1,3 +1,4 @@
+mod config;
 mod image;
 mod moviedrop;
 mod network;

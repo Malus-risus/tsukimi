@@ -1,7 +1,7 @@
+use adw::subclass::prelude::*;
 use glib::Object;
 use gtk::prelude::*;
 use gtk::{gio, glib};
-use adw::subclass::prelude::*;
 mod imp {
     use crate::ui::network::{self, runtime, SearchResult};
     use adw::subclass::prelude::*;
@@ -9,7 +9,8 @@ mod imp {
     use gtk::prelude::*;
     use gtk::{glib, CompositeTemplate};
     use std::cell::OnceCell;
-    use std::path::PathBuf;
+    #[cfg(windows)]
+    use std::env;
     // Object holding the state
     #[derive(CompositeTemplate, Default, glib::Properties)]
     #[template(resource = "/moe/tsukimi/movie.ui")]
@@ -74,17 +75,22 @@ mod imp {
             let obj = self.obj();
             let id = obj.id();
             let name = obj.moviename();
-            let path = format!(
-                "{}/.local/share/tsukimi/b{}.png",
-                dirs::home_dir().expect("msg").display(),
-                id
-            );
-            let pathbuf = PathBuf::from(&path);
+
+            #[cfg(unix)]
+            let pathbuf = dirs::home_dir()
+                .unwrap()
+                .join(format!(".local/share/tsukimi/b{}.png", id));
+            #[cfg(windows)]
+            let pathbuf = env::current_dir()
+                .unwrap()
+                .join("thumbnails")
+                .join(format!("b{}.png", id));
+
             let backdrop = self.backdrop.get();
             let (sender, receiver) = async_channel::bounded::<String>(1);
             let idclone = id.clone();
             if pathbuf.exists() {
-                backdrop.set_file(Some(&gtk::gio::File::for_path(&path)));
+                backdrop.set_file(Some(&gtk::gio::File::for_path(&pathbuf)));
             } else {
                 crate::ui::network::runtime().spawn(async move {
                     let id = crate::ui::network::get_backdropimage(idclone)
@@ -103,11 +109,16 @@ mod imp {
             let name = name.clone();
             glib::spawn_future_local(async move {
                 while let Ok(_) = receiver.recv().await {
-                    let path = format!(
-                        "{}/.local/share/tsukimi/b{}.png",
-                        dirs::home_dir().expect("msg").display(),
-                        idclone
-                    );
+                    #[cfg(unix)]
+                    let path = dirs::home_dir()
+                        .unwrap()
+                        .join(format!(".local/share/tsukimi/b{}.png", idclone));
+                    #[cfg(windows)]
+                    let path = env::current_dir()
+                        .unwrap()
+                        .join("thumbnails")
+                        .join(format!("b{}.png", idclone));
+
                     let file = gtk::gio::File::for_path(&path);
                     backdrop.set_file(Some(&file));
                 }
@@ -184,7 +195,9 @@ impl MoviePage {
         let overviewrevealer = imp.overviewrevealer.get();
         let (sender, receiver) = async_channel::bounded::<crate::ui::network::Item>(1);
         crate::ui::network::runtime().spawn(async move {
-            let item = crate::ui::network::get_item_overview(id.to_string()).await.expect("msg");
+            let item = crate::ui::network::get_item_overview(id.to_string())
+                .await
+                .expect("msg");
             sender.send(item).await.expect("msg");
         });
         glib::spawn_future_local(glib::clone!(@weak self as obj=>async move {
@@ -203,23 +216,32 @@ impl MoviePage {
         }));
     }
 
-    pub fn createmediabox(&self,id: String) {
+    pub fn createmediabox(&self, id: String) {
         let imp = self.imp();
         let mediainfobox = imp.mediainfobox.get();
         let mediainforevealer = imp.mediainforevealer.get();
         let (sender, receiver) = async_channel::bounded::<crate::ui::network::Media>(1);
         crate::ui::network::runtime().spawn(async move {
-            let media = crate::ui::network::get_mediainfo(id.to_string()).await.expect("msg");
+            let media = crate::ui::network::get_mediainfo(id.to_string())
+                .await
+                .expect("msg");
             sender.send(media).await.expect("msg");
         });
         glib::spawn_future_local(async move {
             while let Ok(media) = receiver.recv().await {
                 while mediainfobox.last_child() != None {
-                    mediainfobox.last_child().map(|child| mediainfobox.remove(&child));
+                    mediainfobox
+                        .last_child()
+                        .map(|child| mediainfobox.remove(&child));
                 }
                 for mediasource in media.MediaSources {
                     let singlebox = gtk::Box::new(gtk::Orientation::Vertical, 5);
-                    let info = format!("{} {}\n{}", mediasource.Container.to_uppercase(), bytefmt::format(mediasource.Size), mediasource.Name);
+                    let info = format!(
+                        "{} {}\n{}",
+                        mediasource.Container.to_uppercase(),
+                        bytefmt::format(mediasource.Size),
+                        mediasource.Name
+                    );
                     let label = gtk::Label::builder()
                         .label(&info)
                         .halign(gtk::Align::Start)
@@ -247,9 +269,7 @@ impl MoviePage {
                             .width_request(300)
                             .build();
                         let mut str: String = Default::default();
-                        let icon = gtk::Image::builder()
-                            .margin_end(5)
-                            .build();
+                        let icon = gtk::Image::builder().margin_end(5).build();
                         if mediapart.Type == "Video" {
                             icon.set_from_icon_name(Some("video-x-generic-symbolic"))
                         } else if mediapart.Type == "Audio" {
@@ -275,7 +295,9 @@ impl MoviePage {
                             str.push_str(format!("\nTitle: {}", title).as_str());
                         }
                         if let Some(bitrate) = mediapart.BitRate {
-                            str.push_str(format!("\nBitrate: {}it/s", bytefmt::format(bitrate)).as_str());
+                            str.push_str(
+                                format!("\nBitrate: {}it/s", bytefmt::format(bitrate)).as_str(),
+                            );
                         }
                         if let Some(bitdepth) = mediapart.BitDepth {
                             str.push_str(format!("\nBitDepth: {} bit", bitdepth).as_str());
@@ -302,7 +324,9 @@ impl MoviePage {
                             str.push_str(format!("\nChannelLayout: {}", channellayout).as_str());
                         }
                         if let Some(averageframerate) = mediapart.AverageFrameRate {
-                            str.push_str(format!("\nAverageFrameRate: {}", averageframerate).as_str());
+                            str.push_str(
+                                format!("\nAverageFrameRate: {}", averageframerate).as_str(),
+                            );
                         }
                         if let Some(pixelformat) = mediapart.PixelFormat {
                             str.push_str(format!("\nPixelFormat: {}", pixelformat).as_str());
@@ -317,7 +341,7 @@ impl MoviePage {
                         mediapartbox.append(&inscription);
                         mediabox.append(&mediapartbox);
                     }
-                    
+
                     mediascrolled.set_child(Some(&mediabox));
                     singlebox.append(&mediascrolled);
                     mediainfobox.append(&singlebox);
@@ -349,7 +373,10 @@ impl MoviePage {
                 .build();
             linkbutton.set_child(Some(&buttoncontent));
             linkbutton.connect_clicked(move |_| {
-                let _ = gio::AppInfo::launch_default_for_uri(&url.Url, Option::<&gio::AppLaunchContext>::None);
+                let _ = gio::AppInfo::launch_default_for_uri(
+                    &url.Url,
+                    Option::<&gio::AppLaunchContext>::None,
+                );
             });
             linkbox.append(&linkbutton);
         }
@@ -418,15 +445,15 @@ impl MoviePage {
                 if let Some(_revealer) = picture
                     .downcast_ref::<gtk::Box>()
                     .expect("Needs to be Box")
-                    .first_child() {
-                    
+                    .first_child()
+                {
                 } else {
-                let mutex = std::sync::Arc::new(tokio::sync::Mutex::new(()));
-                let img = crate::ui::image::setimage(people.Id.clone(), mutex.clone());
-                picture
-                    .downcast_ref::<gtk::Box>()
-                    .expect("Needs to be Box")
-                    .append(&img);
+                    let mutex = std::sync::Arc::new(tokio::sync::Mutex::new(()));
+                    let img = crate::ui::image::setimage(people.Id.clone(), mutex.clone());
+                    picture
+                        .downcast_ref::<gtk::Box>()
+                        .expect("Needs to be Box")
+                        .append(&img);
                 }
             }
             if label.is::<gtk::Label>() {
@@ -438,7 +465,6 @@ impl MoviePage {
                         .set_text(&str);
                 }
             }
-            
         });
         imp.actorlist.set_factory(Some(&factory));
         imp.actorlist.set_model(Some(actorselection));

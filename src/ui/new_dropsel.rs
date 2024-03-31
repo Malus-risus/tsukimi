@@ -1,3 +1,4 @@
+use super::config::MPVClient;
 use super::network;
 use super::network::SeriesInfo;
 use gtk::prelude::*;
@@ -96,7 +97,7 @@ pub fn newmediadropsel(playbackinfo: network::Media, info: SeriesInfo) -> gtk::B
                     network::runtime().spawn(async move {
                         let _ = network::markwatched(name, sourceid).await;
                     });
-                    network::mpv_play(directurl.expect("no url"), media.Name.clone());
+                    MPVClient::play(directurl.expect("no url"), media.Name.clone());
                     return;
                 }
             }
@@ -119,7 +120,7 @@ pub fn newmediadropsel(playbackinfo: network::Media, info: SeriesInfo) -> gtk::B
                                         network::runtime().spawn(async move {
                                             let _ = network::markwatched(name, sourceid).await;
                                         });
-                                        let _ = network::mpv_play_withsub(
+                                        let _ = MPVClient::play_with_sub(
                                             directurl,
                                             suburl,
                                             media.Name.clone(),
@@ -130,14 +131,18 @@ pub fn newmediadropsel(playbackinfo: network::Media, info: SeriesInfo) -> gtk::B
                                         let sourceid = media.Id.clone();
                                         button.set_label("Loading Subtitle");
                                         network::runtime().spawn(async move {
-                                            let media = network::playbackinfo_withmediaid(name, sourceid).await;
+                                            let media =
+                                                network::playbackinfo_withmediaid(name, sourceid)
+                                                    .await;
                                             let media = media.unwrap();
                                             for mediasource in media.MediaSources {
                                                 for mediastream in mediasource.MediaStreams {
                                                     if mediastream.Type == "Subtitle" {
                                                         if displaytitle == sub {
-                                                            if let Some(suburl) = mediastream.DeliveryUrl.clone() {
-                                                                let _ = network::mpv_play_withsub(
+                                                            if let Some(suburl) =
+                                                                mediastream.DeliveryUrl.clone()
+                                                            {
+                                                                let _ = MPVClient::play_with_sub(
                                                                     directurl.clone(),
                                                                     suburl,
                                                                     mediasource.Name.clone(),
@@ -156,8 +161,7 @@ pub fn newmediadropsel(playbackinfo: network::Media, info: SeriesInfo) -> gtk::B
                                     network::runtime().spawn(async move {
                                         let _ = network::markwatched(name, sourceid).await;
                                     });
-                                    let _ = network::mpv_play(directurl, media.Name.clone());
-                                    return;
+                                    let _ = MPVClient::play(directurl, media.Name.clone());
                                 }
                             }
                         }

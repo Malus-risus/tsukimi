@@ -1,3 +1,4 @@
+use super::config::MPVClient;
 use super::network;
 use super::network::SearchResult;
 use gtk::prelude::*;
@@ -90,7 +91,7 @@ pub fn newmediadropsel(playbackinfo: network::Media, info: SearchResult) -> gtk:
                     network::runtime().spawn(async move {
                         let _ = network::markwatched(name, sourceid).await;
                     });
-                    network::mpv_play(directurl.expect("no url"), media.Name.clone());
+                    MPVClient::play(directurl.expect("no url"), media.Name.clone());
                 }
             }
             return;
@@ -111,7 +112,7 @@ pub fn newmediadropsel(playbackinfo: network::Media, info: SearchResult) -> gtk:
                                 network::runtime().spawn(async move {
                                     let _ = network::markwatched(name, sourceid).await;
                                 });
-                                let _ = network::mpv_play_withsub(
+                                let _ = MPVClient::play_with_sub(
                                     directurl.expect("no url"),
                                     suburl.expect("no url"),
                                     media.Name.clone(),
@@ -122,10 +123,8 @@ pub fn newmediadropsel(playbackinfo: network::Media, info: SearchResult) -> gtk:
                                 network::runtime().spawn(async move {
                                     let _ = network::markwatched(name, sourceid).await;
                                 });
-                                let _ = network::mpv_play(
-                                    directurl.expect("no url"),
-                                    media.Name.clone(),
-                                );
+                                let _ =
+                                    MPVClient::play(directurl.expect("no url"), media.Name.clone());
                             }
                         }
                     }

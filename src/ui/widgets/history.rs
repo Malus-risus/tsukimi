@@ -93,7 +93,7 @@ mod imp {
                 let overlay = gtk::Overlay::new();
                 let imgbox;
                 let mutex = std::sync::Arc::new(tokio::sync::Mutex::new(()));
-                if result.ParentThumbItemId.is_some() && result.Type == "Episode"{
+                if result.ParentThumbItemId.is_some() && result.Type == "Episode" {
                     imgbox = crate::ui::image::setthumbimage(
                         result.ParentThumbItemId.as_ref().expect("").clone(),
                         mutex.clone(),
@@ -130,9 +130,7 @@ mod imp {
                 }
                 overlay.add_overlay(&progressbar);
                 vbox.append(&overlay);
-                let label = Label::builder()
-                    .label(&result.Name)
-                    .build();
+                let label = Label::builder().label(&result.Name).build();
                 let labeltype = Label::new(Some(&result.Type));
                 if result.Type == "Episode" {
                     let markup = format!("{}", result.SeriesName.as_ref().expect("").clone());
@@ -147,8 +145,10 @@ mod imp {
                 } else {
                     let markup = format!("{}", result.Name);
                     label.set_markup(markup.as_str());
-                    let markup =
-                        format!("<span color='lightgray' font='small'>{}</span>", result.Type);
+                    let markup = format!(
+                        "<span color='lightgray' font='small'>{}</span>",
+                        result.Type
+                    );
                     labeltype.set_markup(markup.as_str());
                 }
                 label.set_wrap(true);
@@ -181,7 +181,7 @@ mod imp {
                     }
                 }
                 obj.set(item_page);
-                let window = obj.root();
+let window = obj.root();
                 if let Some(window) = window {
                     if window.is::<Window>() {
                         let window = window.downcast::<Window>().unwrap();

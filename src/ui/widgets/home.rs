@@ -319,13 +319,16 @@ impl HomePage {
                 } else {
                     let mutex = std::sync::Arc::new(tokio::sync::Mutex::new(()));
                     let img = crate::ui::image::setimage(latest.Id.clone(), mutex.clone());
-                    let overlay = gtk::Overlay::builder()
-                        .child(&img)
-                        .build();
+                    let overlay = gtk::Overlay::builder().child(&img).build();
                     if let Some(userdata) = &latest.UserData {
                         if let Some(unplayeditemcount) = userdata.UnplayedItemCount {
                             if unplayeditemcount > 0 {
-                                let mark = gtk::Label::new(Some(&userdata.UnplayedItemCount.expect("no unplayeditemcount").to_string()));
+                                let mark = gtk::Label::new(Some(
+                                    &userdata
+                                        .UnplayedItemCount
+                                        .expect("no unplayeditemcount")
+                                        .to_string(),
+                                ));
                                 mark.set_valign(gtk::Align::Start);
                                 mark.set_halign(gtk::Align::End);
                                 mark.set_height_request(40);
@@ -370,7 +373,7 @@ impl HomePage {
                         .timeout(3)
                         .build();
                     obj.imp().toast.add_toast(toast);
-                }      
+                }
                 let window = obj.root();
                 if let Some(window) = window {
                     if window.is::<Window>() {

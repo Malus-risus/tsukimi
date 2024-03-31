@@ -1,9 +1,12 @@
 use gtk::glib::{self, clone};
 use gtk::{prelude::*, Revealer};
 use gtk::{Box, Orientation};
+#[cfg(windows)]
+use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
 pub fn set_image(id: String, mutex: Arc<Mutex<()>>) -> Box {
     let imgbox = Box::new(Orientation::Vertical, 5);
 
@@ -19,16 +22,10 @@ pub fn set_image(id: String, mutex: Arc<Mutex<()>>) -> Box {
         .vexpand(true)
         .transition_duration(700)
         .build();
-    let path = format!(
-        "{}/.local/share/tsukimi/{}.png",
-        dirs::home_dir().expect("msg").display(),
-        id
-    );
-    let pathbuf = PathBuf::from(&path);
-    let idfuture = id.clone();
+    let pathbuf = get_thum_dir().join(format!("{}.png", id));
     if pathbuf.exists() {
         if image.file().is_none() {
-            image.set_file(Some(&gtk::gio::File::for_path(&path)));
+            image.set_file(Some(&gtk::gio::File::for_path(&pathbuf)));
             revealer.set_reveal_child(true);
         }
     } else {
@@ -55,8 +52,7 @@ pub fn set_image(id: String, mutex: Arc<Mutex<()>>) -> Box {
 
     glib::spawn_future_local(clone!(@weak image,@weak revealer => async move {
         while let Ok(_) = receiver.recv().await {
-            let path = format!("{}/.local/share/tsukimi/{}.png",dirs::home_dir().expect("msg").display(), idfuture);
-            let file = gtk::gio::File::for_path(&path);
+            let file = gtk::gio::File::for_path(&pathbuf);
             image.set_file(Some(&file));
             revealer.set_reveal_child(true);
         }
@@ -80,16 +76,11 @@ pub fn setimage(id: String, mutex: Arc<Mutex<()>>) -> Revealer {
         .transition_duration(700)
         .build();
 
-    let path = format!(
-        "{}/.local/share/tsukimi/{}.png",
-        dirs::home_dir().expect("msg").display(),
-        id
-    );
-    let pathbuf = PathBuf::from(&path);
+    let pathbuf = get_thum_dir().join(format!("{}.png", id));
     let idfuture = id.clone();
     if pathbuf.exists() {
         if image.file().is_none() {
-            image.set_file(Some(&gtk::gio::File::for_path(&path)));
+            image.set_file(Some(&gtk::gio::File::for_path(&pathbuf)));
             revealer.set_reveal_child(true);
         }
     } else {
@@ -116,7 +107,8 @@ pub fn setimage(id: String, mutex: Arc<Mutex<()>>) -> Revealer {
 
     glib::spawn_future_local(clone!(@weak image,@weak revealer => async move {
         while let Ok(_) = receiver.recv().await {
-            let path = format!("{}/.local/share/tsukimi/{}.png",dirs::home_dir().expect("msg").display(), idfuture);
+            let path =get_thum_dir().join(format!("{}.png",idfuture));
+
             let file = gtk::gio::File::for_path(&path);
             image.set_file(Some(&file));
             revealer.set_reveal_child(true);
@@ -140,16 +132,11 @@ pub fn setthumbimage(id: String, mutex: Arc<Mutex<()>>) -> Revealer {
         .transition_duration(700)
         .build();
 
-    let path = format!(
-        "{}/.local/share/tsukimi/t{}.png",
-        dirs::home_dir().expect("msg").display(),
-        id
-    );
-    let pathbuf = PathBuf::from(&path);
+    let pathbuf = get_thum_dir().join(format!("t{}.png", id));
     let idfuture = id.clone();
     if pathbuf.exists() {
         if image.file().is_none() {
-            image.set_file(Some(&gtk::gio::File::for_path(&path)));
+            image.set_file(Some(&gtk::gio::File::for_path(&pathbuf)));
             revealer.set_reveal_child(true);
         }
     } else {
@@ -176,7 +163,7 @@ pub fn setthumbimage(id: String, mutex: Arc<Mutex<()>>) -> Revealer {
 
     glib::spawn_future_local(clone!(@weak image,@weak revealer => async move {
         while let Ok(_) = receiver.recv().await {
-            let path = format!("{}/.local/share/tsukimi/t{}.png",dirs::home_dir().expect("msg").display(), idfuture);
+            let path = get_thum_dir().join(format!("t{}.png",idfuture));
             let file = gtk::gio::File::for_path(&path);
             image.set_file(Some(&file));
             revealer.set_reveal_child(true);
@@ -200,16 +187,11 @@ pub fn setbackdropimage(id: String, mutex: Arc<Mutex<()>>) -> Revealer {
         .transition_duration(700)
         .build();
 
-    let path = format!(
-        "{}/.local/share/tsukimi/b{}.png",
-        dirs::home_dir().expect("msg").display(),
-        id
-    );
-    let pathbuf = PathBuf::from(&path);
+    let pathbuf = get_thum_dir().join(format!("b{}.png", id));
     let idfuture = id.clone();
     if pathbuf.exists() {
         if image.file().is_none() {
-            image.set_file(Some(&gtk::gio::File::for_path(&path)));
+            image.set_file(Some(&gtk::gio::File::for_path(&pathbuf)));
             revealer.set_reveal_child(true);
         }
     } else {
@@ -236,7 +218,7 @@ pub fn setbackdropimage(id: String, mutex: Arc<Mutex<()>>) -> Revealer {
 
     glib::spawn_future_local(clone!(@weak image,@weak revealer => async move {
         while let Ok(_) = receiver.recv().await {
-            let path = format!("{}/.local/share/tsukimi/b{}.png",dirs::home_dir().expect("msg").display(), idfuture);
+            let path = get_thum_dir().join(format!("b{}.png",idfuture));
             let file = gtk::gio::File::for_path(&path);
             image.set_file(Some(&file));
             revealer.set_reveal_child(true);
@@ -245,7 +227,6 @@ pub fn setbackdropimage(id: String, mutex: Arc<Mutex<()>>) -> Revealer {
 
     revealer
 }
-
 
 pub fn setlogoimage(id: String, mutex: Arc<Mutex<()>>) -> Revealer {
     let (sender, receiver) = async_channel::bounded::<String>(1);
@@ -260,16 +241,11 @@ pub fn setlogoimage(id: String, mutex: Arc<Mutex<()>>) -> Revealer {
         .transition_duration(700)
         .build();
 
-    let path = format!(
-        "{}/.local/share/tsukimi/l{}.png",
-        dirs::home_dir().expect("msg").display(),
-        id
-    );
-    let pathbuf = PathBuf::from(&path);
+    let pathbuf = get_thum_dir().join(format!("l{}.png", id));
     let idfuture = id.clone();
     if pathbuf.exists() {
         if image.file().is_none() {
-            image.set_file(Some(&gtk::gio::File::for_path(&path)));
+            image.set_file(Some(&gtk::gio::File::for_path(&pathbuf)));
             revealer.set_reveal_child(true);
         }
     } else {
@@ -296,7 +272,7 @@ pub fn setlogoimage(id: String, mutex: Arc<Mutex<()>>) -> Revealer {
 
     glib::spawn_future_local(clone!(@weak image,@weak revealer => async move {
         while let Ok(_) = receiver.recv().await {
-            let path = format!("{}/.local/share/tsukimi/l{}.png",dirs::home_dir().expect("msg").display(), idfuture);
+        let path = get_thum_dir().join(format!("l{}.png",idfuture));
             let file = gtk::gio::File::for_path(&path);
             image.set_file(Some(&file));
             revealer.set_reveal_child(true);
@@ -304,4 +280,14 @@ pub fn setlogoimage(id: String, mutex: Arc<Mutex<()>>) -> Revealer {
     }));
 
     revealer
+}
+
+fn get_thum_dir() -> PathBuf {
+    #[cfg(unix)]
+    let pathbuf = dirs::home_dir().unwrap().join(".local/share/tsukimi");
+
+    #[cfg(windows)]
+    let pathbuf = env::current_dir().unwrap().join("thumbnails");
+
+    return pathbuf;
 }

@@ -1,9 +1,9 @@
+use crate::ui::network::SeriesInfo;
 use adw::subclass::prelude::*;
 use glib::Object;
 use gtk::prelude::*;
 use gtk::{gio, glib};
-
-use crate::ui::network::SeriesInfo;
+use std::{env, path::PathBuf};
 
 mod imp {
     use crate::ui::network;
@@ -12,8 +12,9 @@ mod imp {
     use gtk::prelude::*;
     use gtk::{glib, CompositeTemplate};
     use std::cell::{OnceCell, Ref};
+
+    use super::get_thum_dir;
     use std::collections::{HashMap, HashSet};
-    use std::path::PathBuf;
     // Object holding the state
     #[derive(CompositeTemplate, Default, glib::Properties)]
     #[template(resource = "/moe/tsukimi/item.ui")]
@@ -101,17 +102,12 @@ mod imp {
             let id = obj.id();
             let idc = id.clone();
             let inid = obj.inid();
-            let path = format!(
-                "{}/.local/share/tsukimi/b{}.png",
-                dirs::home_dir().expect("msg").display(),
-                id
-            );
-            let pathbuf = PathBuf::from(&path);
+            let pathbuf = get_thum_dir().join(format!("b{}.png", id));
             let backdrop = self.backdrop.get();
             let (sender, receiver) = async_channel::bounded::<String>(1);
             let idclone = id.clone();
             if pathbuf.exists() {
-                backdrop.set_file(Some(&gtk::gio::File::for_path(&path)));
+                backdrop.set_file(Some(&gtk::gio::File::for_path(&pathbuf)));
             } else {
                 crate::ui::network::runtime().spawn(async move {
                     let id = crate::ui::network::get_backdropimage(idclone)
@@ -128,12 +124,8 @@ mod imp {
 
             glib::spawn_future_local(async move {
                 while let Ok(_) = receiver.recv().await {
-                    let path = format!(
-                        "{}/.local/share/tsukimi/b{}.png",
-                        dirs::home_dir().expect("msg").display(),
-                        idclone
-                    );
-                    let file = gtk::gio::File::for_path(&path);
+                    let pathbuf = get_thum_dir().join(format!("b{}.png", idclone));
+                    let file = gtk::gio::File::for_path(&pathbuf);
                     backdrop.set_file(Some(&file));
                 }
             });
@@ -267,15 +259,16 @@ mod imp {
             self.itemlist.set_model(Some(&self.selection));
             let logobox = self.logobox.get();
             obj.logoset(logobox);
-            self.itemlist.connect_activate(glib::clone!(@weak obj =>move |listview, position| {
-                let model = listview.model().unwrap();
-                let item = model
-                    .item(position)
-                    .and_downcast::<glib::BoxedAnyObject>()
-                    .unwrap();
-                let seriesinfo: Ref<network::SeriesInfo> = item.borrow();
-                obj.selectepisode(seriesinfo.clone());
-            }));
+            self.itemlist
+                .connect_activate(glib::clone!(@weak obj =>move |listview, position| {
+                    let model = listview.model().unwrap();
+                    let item = model
+                        .item(position)
+                        .and_downcast::<glib::BoxedAnyObject>()
+                        .unwrap();
+                    let seriesinfo: Ref<network::SeriesInfo> = item.borrow();
+                    obj.selectepisode(seriesinfo.clone());
+                }));
         }
     }
 
@@ -386,7 +379,7 @@ impl ItemPage {
                     }
                     osdbox.append(&dropdown);
                 }
-            }), 
+            }),
         );
 
         if let Some(overview) = seriesinfo.Overview {
@@ -402,7 +395,9 @@ impl ItemPage {
         let overviewrevealer = imp.overviewrevealer.get();
         let (sender, receiver) = async_channel::bounded::<crate::ui::network::Item>(1);
         crate::ui::network::runtime().spawn(async move {
-            let item = crate::ui::network::get_item_overview(id.to_string()).await.expect("msg");
+            let item = crate::ui::network::get_item_overview(id.to_string())
+                .await
+                .expect("msg");
             sender.send(item).await.expect("msg");
         });
         glib::spawn_future_local(glib::clone!(@weak self as obj=>async move {
@@ -421,23 +416,32 @@ impl ItemPage {
         }));
     }
 
-    pub fn createmediabox(&self,id: String) {
+    pub fn createmediabox(&self, id: String) {
         let imp = self.imp();
         let mediainfobox = imp.mediainfobox.get();
         let mediainforevealer = imp.mediainforevealer.get();
         let (sender, receiver) = async_channel::bounded::<crate::ui::network::Media>(1);
         crate::ui::network::runtime().spawn(async move {
-            let media = crate::ui::network::get_mediainfo(id.to_string()).await.expect("msg");
+            let media = crate::ui::network::get_mediainfo(id.to_string())
+                .await
+                .expect("msg");
             sender.send(media).await.expect("msg");
         });
         glib::spawn_future_local(async move {
             while let Ok(media) = receiver.recv().await {
                 while mediainfobox.last_child() != None {
-                    mediainfobox.last_child().map(|child| mediainfobox.remove(&child));
+                    mediainfobox
+                        .last_child()
+                        .map(|child| mediainfobox.remove(&child));
                 }
                 for mediasource in media.MediaSources {
                     let singlebox = gtk::Box::new(gtk::Orientation::Vertical, 5);
-                    let info = format!("{} {}\n{}", mediasource.Container.to_uppercase(), bytefmt::format(mediasource.Size), mediasource.Name);
+                    let info = format!(
+                        "{} {}\n{}",
+                        mediasource.Container.to_uppercase(),
+                        bytefmt::format(mediasource.Size),
+                        mediasource.Name
+                    );
                     let label = gtk::Label::builder()
                         .label(&info)
                         .halign(gtk::Align::Start)
@@ -465,9 +469,7 @@ impl ItemPage {
                             .width_request(300)
                             .build();
                         let mut str: String = Default::default();
-                        let icon = gtk::Image::builder()
-                            .margin_end(5)
-                            .build();
+                        let icon = gtk::Image::builder().margin_end(5).build();
                         if mediapart.Type == "Video" {
                             icon.set_from_icon_name(Some("video-x-generic-symbolic"))
                         } else if mediapart.Type == "Audio" {
@@ -493,7 +495,9 @@ impl ItemPage {
                             str.push_str(format!("\nTitle: {}", title).as_str());
                         }
                         if let Some(bitrate) = mediapart.BitRate {
-                            str.push_str(format!("\nBitrate: {}it/s", bytefmt::format(bitrate)).as_str());
+                            str.push_str(
+                                format!("\nBitrate: {}it/s", bytefmt::format(bitrate)).as_str(),
+                            );
                         }
                         if let Some(bitdepth) = mediapart.BitDepth {
                             str.push_str(format!("\nBitDepth: {} bit", bitdepth).as_str());
@@ -520,7 +524,9 @@ impl ItemPage {
                             str.push_str(format!("\nChannelLayout: {}", channellayout).as_str());
                         }
                         if let Some(averageframerate) = mediapart.AverageFrameRate {
-                            str.push_str(format!("\nAverageFrameRate: {}", averageframerate).as_str());
+                            str.push_str(
+                                format!("\nAverageFrameRate: {}", averageframerate).as_str(),
+                            );
                         }
                         if let Some(pixelformat) = mediapart.PixelFormat {
                             str.push_str(format!("\nPixelFormat: {}", pixelformat).as_str());
@@ -535,7 +541,7 @@ impl ItemPage {
                         mediapartbox.append(&inscription);
                         mediabox.append(&mediapartbox);
                     }
-                    
+
                     mediascrolled.set_child(Some(&mediabox));
                     singlebox.append(&mediascrolled);
                     mediainfobox.append(&singlebox);
@@ -567,7 +573,10 @@ impl ItemPage {
                 .build();
             linkbutton.set_child(Some(&buttoncontent));
             linkbutton.connect_clicked(move |_| {
-                let _ = gio::AppInfo::launch_default_for_uri(&url.Url, Option::<&gio::AppLaunchContext>::None);
+                let _ = gio::AppInfo::launch_default_for_uri(
+                    &url.Url,
+                    Option::<&gio::AppLaunchContext>::None,
+                );
             });
             linkbox.append(&linkbutton);
         }
@@ -636,31 +645,39 @@ impl ItemPage {
                 if let Some(_revealer) = picture
                     .downcast_ref::<gtk::Box>()
                     .expect("Needs to be Box")
-                    .first_child() {
-                    
+                    .first_child()
+                {
                 } else {
-                let mutex = std::sync::Arc::new(tokio::sync::Mutex::new(()));
-                let img = crate::ui::image::setimage(people.Id.clone(), mutex.clone());
-                picture
-                    .downcast_ref::<gtk::Box>()
-                    .expect("Needs to be Box")
-                    .append(&img);
+                    let mutex = std::sync::Arc::new(tokio::sync::Mutex::new(()));
+                    let img = crate::ui::image::setimage(people.Id.clone(), mutex.clone());
+                    picture
+                        .downcast_ref::<gtk::Box>()
+                        .expect("Needs to be Box")
+                        .append(&img);
                 }
             }
             if label.is::<gtk::Label>() {
                 if let Some(role) = &people.Role {
-                let str = format!("{}\n{}", people.Name, role);
-                label
-                    .downcast_ref::<gtk::Label>()
-                    .expect("Needs to be Label")
-                    .set_text(&str);
+                    let str = format!("{}\n{}", people.Name, role);
+                    label
+                        .downcast_ref::<gtk::Label>()
+                        .expect("Needs to be Label")
+                        .set_text(&str);
                 }
             }
-            
         });
         imp.actorlist.set_factory(Some(&factory));
         imp.actorlist.set_model(Some(actorselection));
         let actorlist = imp.actorlist.get();
         actorscrolled.set_child(Some(&actorlist));
     }
+}
+
+fn get_thum_dir() -> PathBuf {
+    #[cfg(unix)]
+    let path = dirs::home_dir().unwrap().join(".local/share/tsukimi");
+    #[cfg(windows)]
+    let path = env::current_dir().unwrap().join("thumbnails");
+
+    return path;
 }

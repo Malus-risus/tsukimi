@@ -1,7 +1,10 @@
 use adw::prelude::NavigationPageExt;
+#[cfg(unix)]
 use dirs::home_dir;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
+#[cfg(windows)]
+use std::env;
 mod imp {
     use adw::subclass::application_window::AdwApplicationWindowImpl;
     use glib::subclass::InitializingObject;
@@ -197,10 +200,11 @@ impl Window {
         imp.insidestack.set_visible_child_name("settingspage");
         imp.navipage.set_title("Preferences");
     }
-    
+
     fn sidebar(&self) {
         let imp = self.imp();
-        imp.split_view.set_show_sidebar(!imp.split_view.shows_sidebar());
+        imp.split_view
+            .set_show_sidebar(!imp.split_view.shows_sidebar());
     }
 
     async fn login(&self) {
@@ -239,9 +243,14 @@ impl Window {
     }
 
     fn loginenter(&self) {
-        let mut path = home_dir().unwrap();
-        path.push(".config");
-        path.push("tsukimi.yaml");
+        #[cfg(unix)]
+        let path = home_dir().unwrap().join(".config/tsukimi.toml");
+        #[cfg(windows)]
+        let path = env::current_dir()
+            .unwrap()
+            .join("config")
+            .join("tsukimi.toml");
+
         if path.exists() {
             self.mainpage();
         }
