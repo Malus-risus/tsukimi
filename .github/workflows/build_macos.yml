@@ -1,11 +1,11 @@
-name: MacOS CI
+name: feature/win - MacOS CI
 on:
   workflow_dispatch:
   push:
     branches:
-      - 'main'
+      - 'feature/win'
   schedule:
-    - cron: '0 4 * * *'
+    - cron: '55 5 * * *'
 
 env:
   CARGO_TERM_COLOR: always
@@ -51,4 +51,5 @@ jobs:
         with:
           name: ${{matrix.artifact}}-${{matrix.target}}
           path: tsukimi-${{matrix.target}}.tar.gz
-          compression-level: 0
+          compression-level: 5
+          retention-days: 3

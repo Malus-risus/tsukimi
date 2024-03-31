@@ -1,11 +1,11 @@
-name: Linux CI
+name: feature/win - Linux CI
 on:
   workflow_dispatch:
   push:
     branches:
-      - 'main'
+      - 'feature/win'
   schedule:
-    - cron: '45 3 * * *'
+    - cron: '45 5 * * *'
 
 jobs:
   build-release:
@@ -35,4 +35,5 @@ jobs:
         with:
           name: ${{matrix.artifact}}-${{matrix.arch-name}}
           path: artifact/*
-          compression-level: 0
+          compression-level: 5
+          retention-days: 3
